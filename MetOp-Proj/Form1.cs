@@ -18,6 +18,8 @@ namespace MetOp_Proj
         Robot mRobot;
         Field mFiled;
         int bf;
+        int ibots;
+        public System.Collections.ArrayList mBots;
         public Form1()
         {
             InitializeComponent();
@@ -27,21 +29,62 @@ namespace MetOp_Proj
         {
             mRobot = new Robot();
             mFiled = new Field();
+            ibots = 500;
             graphicsObj = pictureBox1.CreateGraphics();
+            mBots = new System.Collections.ArrayList();
+            for (int i = 0; i < ibots; ++i)
+                mBots.Add(new Robot());
         }
         
         private void button1_Click(object sender, EventArgs e)
         {
+            int gens = 0;
+            mRobot = new Robot();
             //while (mRobot.x < 0.99 || mRobot.y < 0.99)
             //    mRobot.Simulate(ref mFiled);
-
+            double bestdist;
+            double besttime;
+            int besti;
             while (mRobot.x < 0.99 || mRobot.y < 0.99)
             {
+                ++gens;
+                label1.Text = gens.ToString();
+                bestdist = 5.0;
+                besti = 0;
+                besttime = 0.0;
+                for (int i=0;i<ibots;++i)
+                {
+                    Robot tmp = new Robot(mRobot);
+                    tmp.Randomize();
+                    tmp.Simulate(ref mFiled);
+                    besttime = tmp.time;
+                    if (bestdist <= (0.01 * 0.01 + 0.01 * 0.01))
+                    {
+                        if (besttime > tmp.time)
+                        {
+                            besttime = tmp.time;
+                            bestdist = tmp.fdist;
+                            besti = i;
+                        }
+                    }
+                    else
+                    {
+                        if (bestdist > tmp.fdist)
+                        {
+                            bestdist = tmp.fdist;
+                            besti = i;
+                        }
+                    }
+                    mBots[i] = new Robot(tmp);
+                }
+                mRobot = new Robot((Robot) mBots[besti]);
+                label2.Text = besttime.ToString();
+
                 graphicsObj.Clear(Color.White);
-                mRobot.Randomize();
+                //mRobot.Randomize();
                 mRobot.Draw(ref graphicsObj);
                 mFiled.Draw(ref graphicsObj);
-                mRobot.Simulate(ref mFiled, graphicsObj);
+                mRobot.Simulate(ref mFiled, graphicsObj, false);
             }
         }
 
@@ -75,9 +118,9 @@ namespace MetOp_Proj
         {
             mRandom = new Random(System.DateTime.Now.Millisecond + System.DateTime.Now.Second * 1000);
             mZones = new System.Collections.ArrayList();
-            for (int z = mRandom.Next(3, 7); z > 0; --z)
+            for (int z = mRandom.Next(10, 20); z > 0; --z)
             {
-                mZones.Add(new Zone(mRandom.NextDouble(), mRandom.NextDouble(), mRandom.NextDouble()*0.2));
+                mZones.Add(new Zone(mRandom.NextDouble(), mRandom.NextDouble(), 0.02+mRandom.NextDouble()*0.1));
             }
 
             mBrush = new SolidBrush(Color.Red);
@@ -104,10 +147,26 @@ namespace MetOp_Proj
         double vx, vy;
         double fmax;
         double dt;
+        public double fdist;
         int n;
         bool stopped;
 
-        public void Simulate(ref Field f, Graphics graphicsObj = null)
+        public Robot(Robot r)
+        {
+            this.dt = r.dt;
+            this.fdist = r.fdist;
+            this.fmax = r.fmax;
+            this.n = r.n;
+            this.qt = new QuadTree(r.qt);
+            this.stopped = r.stopped;
+            this.time = r.time;
+            this.vx = r.vx;
+            this.vy = r.vy;
+            this.x = r.x;
+            this.y = r.y;
+        }
+
+        public void Simulate(ref Field f, Graphics graphicsObj = null, bool spl = true)
         {
             stopped = false;
             x = 0.0;
@@ -121,14 +180,14 @@ namespace MetOp_Proj
                 x += vx * dt;
                 y += vy * dt;
                 xy a = qt.GetA(x, y);
-                vx += a.x;
-                vy += a.y;
-                double nr = vx * vx + vy * vy;
-                if (n > 1.0)
-                {
-                    vx /= nr;
-                    vy /= nr;
-                }
+                vx += a.x*0.1;
+                vy += a.y*0.1;
+                //double nr = vx * vx + vy * vy;
+                //if (n > 1.0)
+                //{
+                //    vx /= nr;
+                //    vy /= nr;
+                //}
 
                 if (n > 5000)
                 {
@@ -144,7 +203,7 @@ namespace MetOp_Proj
                         stopped = true;
                 }
 
-                if (stopped && x > 0.001 && y > 0.001 && x < 0.99 && y < 0.99)
+                if (stopped && spl)
                     qt.SplitHere(x, y);
 
                 if (graphicsObj != null)
@@ -155,6 +214,7 @@ namespace MetOp_Proj
                 time += dt;
                 qt.SetTime(x, y, time);
             } while (!stopped);
+            fdist = Math.Sqrt((1.0 - x) * (1.0 - x) + (1.0 - y) * (1.0 - y));
         }
 
         public Robot()
@@ -198,6 +258,28 @@ namespace MetOp_Proj
         public double ax, ay; // у каждого [-1; 1]
         public double time;
         int depth;
+
+        public QuadTree(QuadTree q)
+        {
+            this.ax = q.ax;
+            this.ay = q.ay;
+            this.depth = q.depth;
+            this.mBrush = q.mBrush;
+            this.mColor = q.mColor;
+            this.mRandom = q.mRandom;
+            this.time = q.time;
+            this.w = q.w;
+            this.x = q.x;
+            this.y = q.y;
+
+            if (q.child00 != null)
+            {
+                this.child00 = new QuadTree(q.child00);
+                this.child01 = new QuadTree(q.child01);
+                this.child10 = new QuadTree(q.child10);
+                this.child11 = new QuadTree(q.child11);
+            }
+        }
 
         public void SetTime(double x_, double y_, double t)
         {
@@ -322,15 +404,15 @@ namespace MetOp_Proj
             {
                 if (child00 == null) // если у нас нет детей, то рисуем цвета
                 {
-                    ax += ((time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax)) * ((mRandom.NextDouble() - 0.45) * 1.2);
-                    ay += ((time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax)) * ((mRandom.NextDouble() - 0.45) * 1.2);
+                    ax += ((time / tmax) * (time / tmax) * (time / tmax) * (time / tmax)) * ((mRandom.NextDouble() - 0.5) * 2.0);
+                    ay += ((time / tmax) * (time / tmax) * (time / tmax) * (time / tmax)) * ((mRandom.NextDouble() - 0.5) * 2.0);
                     if (ax > 1.0) ax = 1.0;
                     if (ay > 1.0) ay = 1.0;
                     if (ax < -1.0) ax = -1.0;
                     if (ax < -1.0) ax = -1.0;
-                    double n = Math.Sqrt(ax * ax + ay * ay);
-                    ax /= n * 1.1;
-                    ay /= n * 1.1;
+                    double n = Math.Sqrt(ax * ax + ay * ay) / ((mRandom.NextDouble() + 0.1) / 1.1);
+                    ax /= n;
+                    ay /= n;
                     time = 0.0;
                 }
                 else
@@ -345,7 +427,7 @@ namespace MetOp_Proj
 
         public void Split()
         {
-            if (depth < 10)
+            if (depth < 7)
             {
                 child00 = new QuadTree(x, y, w / 2.0, ax, ay, mBrush, mColor, mRandom, depth);
                 child01 = new QuadTree(x, y + w / 2.0, w / 2.0, ax, ay, mBrush, mColor, mRandom, depth);

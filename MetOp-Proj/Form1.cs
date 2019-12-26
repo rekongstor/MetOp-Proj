@@ -14,6 +14,7 @@ namespace MetOp_Proj
     public partial class Form1 : Form
     {
         public Graphics graphicsObj;
+        public Graphics graphics;
         Graphics go1, go2;
         Robot mRobot;
         Field mFiled;
@@ -29,8 +30,9 @@ namespace MetOp_Proj
         {
             mRobot = new Robot();
             mFiled = new Field();
-            ibots = 500;
+            ibots = 1000;
             graphicsObj = pictureBox1.CreateGraphics();
+            graphics = pictureBox2.CreateGraphics();
             mBots = new System.Collections.ArrayList();
             for (int i = 0; i < ibots; ++i)
                 mBots.Add(new Robot());
@@ -81,8 +83,9 @@ namespace MetOp_Proj
                 label2.Text = besttime.ToString();
 
                 graphicsObj.Clear(Color.White);
+                graphics.Clear(Color.White);
                 //mRobot.Randomize();
-                mRobot.Draw(ref graphicsObj);
+                mRobot.Draw(ref graphics);
                 mFiled.Draw(ref graphicsObj);
                 mRobot.Simulate(ref mFiled, graphicsObj, false);
             }
@@ -150,6 +153,7 @@ namespace MetOp_Proj
         public double fdist;
         int n;
         bool stopped;
+        double nx, ny;
 
         public Robot(Robot r)
         {
@@ -177,31 +181,34 @@ namespace MetOp_Proj
             n = 0;
             do
             {
-                x += vx * dt;
-                y += vy * dt;
-                xy a = qt.GetA(x, y);
-                vx += a.x*0.1;
-                vy += a.y*0.1;
-                //double nr = vx * vx + vy * vy;
-                //if (n > 1.0)
-                //{
-                //    vx /= nr;
-                //    vy /= nr;
-                //}
-
                 if (n > 5000)
                 {
                     break;
                 }
+                nx = x + vx * dt;
+                ny = y + vy * dt;
 
-                if (x < 0.0 || x > 1.0 || y < 0.0 || y > 1.0)
+                if (nx < 0.0 || nx > 1.0 || ny < 0.0 || ny > 1.0) // коллизия стен
+                {
+
                     stopped = true;
+                }
 
-                foreach (Zone z in f.mZones)
+                foreach (Zone z in f.mZones) // 
                 {
                     if ((x - z.x) * (x - z.x) + (y - z.y) * (y - z.y) <= z.r * z.r)
                         stopped = true;
                 }
+
+                x = nx;
+                y = ny;
+
+                xy a = qt.GetA(x, y); // изменение скорости
+                vx += a.x*0.1;
+                vy += a.y*0.1;
+
+
+
 
                 if (stopped && spl)
                     qt.SplitHere(x, y);
@@ -232,7 +239,7 @@ namespace MetOp_Proj
         }
         public void Draw(ref Graphics graphics)
         {
-            qt.Draw(ref graphics);
+            qt.Draw(ref graphics, time);
         }
         public void Randomize()
         {
@@ -404,8 +411,8 @@ namespace MetOp_Proj
             {
                 if (child00 == null) // если у нас нет детей, то рисуем цвета
                 {
-                    ax += ((time / tmax) * (time / tmax) * (time / tmax) * (time / tmax)) * ((mRandom.NextDouble() - 0.5) * 2.0);
-                    ay += ((time / tmax) * (time / tmax) * (time / tmax) * (time / tmax)) * ((mRandom.NextDouble() - 0.5) * 2.0);
+                    ax += ((time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax)) * ((mRandom.NextDouble() - 0.5) * 2.0);
+                    ay += ((time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax)) * ((mRandom.NextDouble() - 0.5) * 2.0);
                     if (ax > 1.0) ax = 1.0;
                     if (ay > 1.0) ay = 1.0;
                     if (ax < -1.0) ax = -1.0;
@@ -452,20 +459,20 @@ namespace MetOp_Proj
             mRandom = mr;
             depth = d + 1;
         }
-        public void Draw(ref Graphics graphicsObj)
+        public void Draw(ref Graphics graphicsObj, double timemax)
         {
             if (child00 == null) // если у нас нет детей, то рисуем цвета
             {
-                mColor = Color.FromArgb((int)((ax + 1.0) / 2.0 * 255.0), (int)((ay + 1.0) / 2.0 * 255.0), 255);
+                mColor = Color.FromArgb((int)((ax + 1.0) / 2.0 * 255.0), (int)((ay + 1.0) / 2.0 * 255.0), (int)(time/timemax * 255.0));
                 mBrush.Color = mColor;
                 graphicsObj.FillRectangle(mBrush, new Rectangle((int)(x * 500), (int)((1.0 - y - w) * 500), (int)(w * 500), (int)(w * 500)));
             }
             else // иначе рекурсивно рисуем
             {
-                child00.Draw(ref graphicsObj);
-                child01.Draw(ref graphicsObj);
-                child10.Draw(ref graphicsObj);
-                child11.Draw(ref graphicsObj);
+                child00.Draw(ref graphicsObj, timemax);
+                child01.Draw(ref graphicsObj, timemax);
+                child10.Draw(ref graphicsObj, timemax);
+                child11.Draw(ref graphicsObj, timemax);
             }
         }
         public QuadTree() // конструктор, который вызывается в самом начале на чистом поле

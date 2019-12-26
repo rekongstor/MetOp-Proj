@@ -436,14 +436,14 @@ namespace MetOp_Proj
         {
             if (depth < 7)
             {
-                child00 = new QuadTree(x, y, w / 2.0, ax, ay, mBrush, mColor, mRandom, depth);
-                child01 = new QuadTree(x, y + w / 2.0, w / 2.0, ax, ay, mBrush, mColor, mRandom, depth);
-                child10 = new QuadTree(x + w / 2.0, y, w / 2.0, ax, ay, mBrush, mColor, mRandom, depth);
-                child11 = new QuadTree(x + w / 2.0, y + w / 2.0, w / 2.0, ax, ay, mBrush, mColor, mRandom, depth);
+                child00 = new QuadTree(x, y, w / 2.0, ax, ay, mBrush, mColor, mRandom, depth, time);
+                child01 = new QuadTree(x, y + w / 2.0, w / 2.0, ax, ay, mBrush, mColor, mRandom, depth, time);
+                child10 = new QuadTree(x + w / 2.0, y, w / 2.0, ax, ay, mBrush, mColor, mRandom, depth, time);
+                child11 = new QuadTree(x + w / 2.0, y + w / 2.0, w / 2.0, ax, ay, mBrush, mColor, mRandom, depth, time);
             }
         }
 
-        public QuadTree(double x_, double y_, double w_, double ax_, double ay_, SolidBrush mb, Color c, Random mr, int d)
+        public QuadTree(double x_, double y_, double w_, double ax_, double ay_, SolidBrush mb, Color c, Random mr, int d, double ttt)
         {
             x = x_;
             y = y_;
@@ -458,6 +458,7 @@ namespace MetOp_Proj
             child11 = null;
             mRandom = mr;
             depth = d + 1;
+            time = ttt;
         }
         public void Draw(ref Graphics graphicsObj, double timemax)
         {

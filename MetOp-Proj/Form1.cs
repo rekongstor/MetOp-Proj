@@ -42,54 +42,101 @@ namespace MetOp_Proj
         {
             int gens = 0;
             mRobot = new Robot();
+            xy bad;
             //while (mRobot.x < 0.99 || mRobot.y < 0.99)
             //    mRobot.Simulate(ref mFiled);
             double bestdist;
             double besttime;
+            double botdist;
+            bool ended = false;
             int besti;
-            while (mRobot.x < 0.99 || mRobot.y < 0.99)
+            while (mRobot.fdist > 0.01 && gens < 500)
             {
+                bad.x = 0.0; bad.y = 0.0;
                 ++gens;
                 label1.Text = gens.ToString();
-                bestdist = 5.0;
+                bestdist = 10.0;
                 besti = 0;
                 besttime = 0.0;
-                for (int i=0;i<ibots;++i)
+                for (int i = 0; i < ibots; ++i) 
                 {
                     Robot tmp = new Robot(mRobot);
                     tmp.Randomize();
                     tmp.Simulate(ref mFiled);
-                    besttime = tmp.time;
-                    if (bestdist <= (0.01 * 0.01 + 0.01 * 0.01))
+                    bad.x += tmp.x / 1000.0;
+                    bad.y += tmp.y / 1000.0; // получаем усреднённую плохую точку
+                    mBots[i] = new Robot(tmp);
+                    if (tmp.fdist <= 0.01)
                     {
-                        if (besttime > tmp.time)
+                        besttime = tmp.time;
+                        besti = i;
+                        ended = true;
+                    }
+                }
+                for (int i = 0; i < ibots; ++i) 
+                {
+                    Robot tmp = (Robot)mBots[i];
+                    botdist = ((tmp.x - bad.x) * (tmp.x - bad.x) + (tmp.y - bad.y) * (tmp.y - bad.x)) * 0.7;
+                    botdist = tmp.fdist - botdist * botdist;
+                    if (ended)
+                    { 
+                        if (besttime > tmp.time && tmp.fdist <= 0.01)
                         {
                             besttime = tmp.time;
-                            bestdist = tmp.fdist;
                             besti = i;
                         }
                     }
                     else
                     {
-                        if (bestdist > tmp.fdist)
+                        if (bestdist > botdist)
                         {
-                            bestdist = tmp.fdist;
+                            besttime = tmp.time;
+                            bestdist = botdist;
                             besti = i;
                         }
                     }
-                    mBots[i] = new Robot(tmp);
                 }
                 mRobot = new Robot((Robot) mBots[besti]);
                 label2.Text = besttime.ToString();
 
                 graphicsObj.Clear(Color.White);
                 graphics.Clear(Color.White);
-                //mRobot.Randomize();
                 mRobot.Draw(ref graphics);
                 mFiled.Draw(ref graphicsObj);
                 mRobot.Simulate(ref mFiled, graphicsObj, false);
             }
+            gens = 0;
+            mBots.Add(new Robot(mRobot)); // #101 - наш найденный идеал до ускорения
+            while (gens < 10)
+            {
+                ++gens;
+                label6.Text = gens.ToString();
+                besttime = mRobot.time;
+                label8.Text = besttime.ToString();
+
+                for (int i = 0; i < ibots; ++i)
+                {
+                    Robot tmp = new Robot(mRobot);
+                    tmp.AccRand();
+                    tmp.Simulate(ref mFiled);
+                    mBots[i] = new Robot(tmp);
+                    if (tmp.fdist <= 0.01 && besttime > tmp.time)
+                    {
+                        besttime = tmp.time;
+                        mBots[101] = new Robot(tmp);
+                        mRobot = new Robot(tmp);
+                        graphicsObj.Clear(Color.White);
+                        mFiled.Draw(ref graphicsObj);
+                        mRobot.Simulate(ref mFiled, graphicsObj, false);
+                        label8.Text = besttime.ToString();
+                    }
+                }
+
+            }
+            graphics.Clear(Color.White);
+            mRobot.Draw(ref graphics);
         }
+
 
         private void button2_Click(object sender, EventArgs e)
         {
@@ -227,6 +274,11 @@ namespace MetOp_Proj
         public Robot()
         {
             qt = new QuadTree();
+            qt.Split();
+            qt.child00.Split();
+            qt.child01.Split();
+            qt.child10.Split();
+            qt.child11.Split();
             time = 0.0;
             fmax = 1.0;
             dt = 0.001; // TODO:
@@ -235,6 +287,7 @@ namespace MetOp_Proj
             x = 0.0;
             y = 0.0;
             n = 0;
+            fdist = 10.0;
             // Инициализируем рандом и графику
         }
         public void Draw(ref Graphics graphics)
@@ -244,6 +297,10 @@ namespace MetOp_Proj
         public void Randomize()
         {
             qt.Randomize(time);
+        }
+        public void AccRand()
+        {
+            qt.AccRandomize();
         }
         public void SplitHere(double x_, double y_)
         {
@@ -407,19 +464,24 @@ namespace MetOp_Proj
 
         public void Randomize(double tmax)
         {
+            double tk = time / tmax;
             if (tmax > 0.0001)
             {
                 if (child00 == null) // если у нас нет детей, то рисуем цвета
                 {
-                    ax += ((time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax)) * ((mRandom.NextDouble() - 0.5) * 2.0);
-                    ay += ((time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax) * (time / tmax)) * ((mRandom.NextDouble() - 0.5) * 2.0);
+                    ///*mRandom.Next(6, 8))*/
+                    ax += (Math.Pow(tk, 4.0)) * ((mRandom.NextDouble() - 0.5) * 2.0) + (mRandom.NextDouble() - 0.5) * 0.01 * depth;
+                    ay += (Math.Pow(tk, 4.0)) * ((mRandom.NextDouble() - 0.5) * 2.0) + (mRandom.NextDouble() - 0.5) * 0.01 * depth;
                     if (ax > 1.0) ax = 1.0;
                     if (ay > 1.0) ay = 1.0;
                     if (ax < -1.0) ax = -1.0;
                     if (ax < -1.0) ax = -1.0;
-                    double n = Math.Sqrt(ax * ax + ay * ay) / ((mRandom.NextDouble() + 0.1) / 1.1);
+                    double n = Math.Sqrt(ax * ax + ay * ay);
                     ax /= n;
                     ay /= n;
+                    double acmax = (mRandom.NextDouble() + 0.5) / 1.5; // [0.1 - 1]
+                    ax *= acmax;
+                    ay *= acmax;
                     time = 0.0;
                 }
                 else
@@ -429,6 +491,25 @@ namespace MetOp_Proj
                     child10.Randomize(tmax);
                     child11.Randomize(tmax);
                 }
+            }
+        }
+        public void AccRandomize()
+        {
+            if (child00 == null) // если у нас нет детей, то рисуем цвета
+            {
+                double n = Math.Sqrt(ax * ax + ay * ay);
+                ax /= n;
+                ay /= n;
+                double acmax = (mRandom.NextDouble() + 0.75) / 1.75; // [0.1 - 1]
+                ax *= acmax;
+                ay *= acmax;
+            }
+            else
+            {
+                child00.AccRandomize();
+                child01.AccRandomize();
+                child10.AccRandomize();
+                child11.AccRandomize();
             }
         }
 
@@ -464,7 +545,7 @@ namespace MetOp_Proj
         {
             if (child00 == null) // если у нас нет детей, то рисуем цвета
             {
-                mColor = Color.FromArgb((int)((ax + 1.0) / 2.0 * 255.0), (int)((ay + 1.0) / 2.0 * 255.0), (int)(time/timemax * 255.0));
+                mColor = Color.FromArgb((int)((ax + 1.0) / 2.0 * 255.0), (int)((ay + 1.0) / 2.0 * 255.0), Math.Min((int)(time/timemax * 255.0),255));
                 mBrush.Color = mColor;
                 graphicsObj.FillRectangle(mBrush, new Rectangle((int)(x * 500), (int)((1.0 - y - w) * 500), (int)(w * 500), (int)(w * 500)));
             }

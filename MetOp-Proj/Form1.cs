@@ -251,8 +251,8 @@ namespace MetOp_Proj
                 y = ny;
 
                 xy a = qt.GetA(x, y); // изменение скорости
-                vx += a.x*0.1;
-                vy += a.y*0.1;
+                vx += a.x*dt;
+                vy += a.y*dt;
 
 
 
@@ -281,7 +281,7 @@ namespace MetOp_Proj
             qt.child11.Split();
             time = 0.0;
             fmax = 1.0;
-            dt = 0.001; // TODO:
+            dt = 0.01; // TODO:
             vx = 0.0;
             vy = 0.0;
             x = 0.0;
@@ -475,7 +475,7 @@ namespace MetOp_Proj
                     if (ax > 1.0) ax = 1.0;
                     if (ay > 1.0) ay = 1.0;
                     if (ax < -1.0) ax = -1.0;
-                    if (ax < -1.0) ax = -1.0;
+                    if (ay < -1.0) ay = -1.0;
                     double n = Math.Sqrt(ax * ax + ay * ay);
                     ax /= n;
                     ay /= n;
